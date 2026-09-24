@@ -1,0 +1,26 @@
+---
+title: "project1"
+format: html
+editor: visual
+---
+
+# Getting data
+
+To start, I'm going to put my API key here for safe keeping: 
+
+640ce0de32b08c9ded3cc11874a33ea9200c2c78
+
+Now, to get our data from the Public Use Microdata Sample Census API. 
+
+```{r}
+library(httr)
+library(jsonlite)
+cen_data21<-GET("https://api.census.gov/data/2021/acs/acs1/pums?get=AGEP,GASP,GRPIP,JWAP,JWDP,JWMNP,PWGTP,FER,HHL,SCH,SCHL,SEX,ST,REGION,DIVISION&key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
+```
+
+```{r}
+cen_data22<-GET("https://api.census.gov/data/2022/acs/acs1/pums?get=AGEP,GASP,GRPIP,JWAP,JWDP,JWMNP,PWGTP,FER,HHL,SCH,SCHL,SEX,ST,REGION,DIVISION&key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
+cen_data23<-GET("https://api.census.gov/data/2021/acs/acs1/pums?get=AGEP,GASP,GRPIP,JWAP,JWDP,JWMNP,PWGTP,FER,HHL,SCH,SCHL,SEX,STATE,REGION,DIVISION&key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
+cen_data24<-GET("https://api.census.gov/data/2024/acs/acs1/pums?get=AGEP,GASP,GRPIP,JWAP,JWDP,JWMNP,PWGTP,FER,HHL,SCH,SCHL,SEX,STATE,REGION,DIVISION&key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
+```
+
