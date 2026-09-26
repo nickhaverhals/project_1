@@ -1,5 +1,5 @@
 ---
-title: "project1"
+title: "Project1"
 format: html
 editor: visual
 ---
@@ -12,19 +12,40 @@ To start, I'm going to put my API key here for safe keeping:
 API_key<-"640ce0de32b08c9ded3cc11874a33ea9200c2c78"
 ```
 
-Just making changes because my html file is apparently not changing.
-
-Now, to get our data from the Public Use Microdata Sample Census API. 
+Now, to get our data from the Public Use Microdata Sample Census API for 2021 and, once that's working, adjust for the other years. 
 
 ```{r}
+#| message: false
+#| warning: false
+#| echo: false
 library(httr)
 library(jsonlite)
-##cen_data21<-GET("https://api.census.gov/data/2021/acs/acs1/pums?get=AGEP,GASP,GRPIP,JWAP,JWDP,JWMNP,PWGTP,FER,HHL,SCH,SCHL,SEX,ST,REGION,DIVISION&key=API_key")
+library(tidyverse)
+cen_data21<-GET("https://api.census.gov/data/2021/acs/acs1/pums?get=AGEP,GASP,GRPIP,JWAP,JWDP,JWMNP,PWGTP,FER,HHL,SCH,SCHL,SEX,ST,REGION,DIVISION&key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
 ```
+
+Now that I have that, I'll try to start parsing it: 
 
 ```{r}
-#cen_data22<-GET("https://api.census.gov/data/2022/acs/acs1/pums?get=AGEP,GASP,GRPIP,JWAP,JWDP,JWMNP,PWGTP,FER,HHL,SCH,SCHL,SEX,ST,REGION,DIVISION&key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
+parsed21<-fromJSON(rawToChar(cen_data21$content))
+cen21_info<-as_tibble(parsed21$data)
+cen21_info
 ```
 
-##cen_data23<-GET("https://api.census.gov/data/2021/acs/acs1/pums?get=AGEP,GASP,GRPIP,JWAP,JWDP,JWMNP,PWGTP,FER,HHL,SCH,SCHL,SEX,STATE,REGION,DIVISION&key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
-##cen_data24<-GET("https://api.census.gov/data/2024/acs/acs1/pums?get=AGEP,GASP,GRPIP,JWAP,JWDP,JWMNP,PWGTP,FER,HHL,SCH,SCHL,SEX,STATE,REGION,DIVISION&key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
+When running this, I see that the first row is actually the variable names so I need to pull those out. Once I do that I'll need to remove the top row.
+"
+```{r}
+cen21_info<-cen21_info|>
+rename("AGEP"="V1","GASP"="V2","GRPIP"="V3","JWAP"="V4","JWDP"="V5","JWMNP"="V6","PWGTP"="V7","FER"="V8","HHL"="V9","SCH"="V10","SCHL"="V11","SEX"="V12","ST"="V13","REGION"="V14","DIVISION"="V15")|>
+  slice(-1)
+cen21_info
+```
+
+Great! Now that I have the column names sorted, I can remove the top row of my tibble. 
+
+
+
+```{r}
+cen21_info
+```
+

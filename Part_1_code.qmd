@@ -1,0 +1,25 @@
+---
+title: "Part 1 Code"
+format: html
+editor: visual
+---
+
+
+To start, I'm going to put my API key here for safe keeping: 
+
+640ce0de32b08c9ded3cc11874a33ea9200c2c78
+
+Now, to get our data from the Public Use Microdata Sample Census API. 
+
+```{r}
+library(httr)
+library(jsonlite)
+cen_data21<-GET("https://api.census.gov/data/2021/acs/acs1/pums?get=AGEP,GASP,GRPIP,JWAP,JWDP,JWMNP,PWGTP,FER,HHL,SCH,SCHL,SEX,ST,REGION,DIVISION&key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
+```
+
+
+```{r}
+parsed21<-fromJSON(cen_data21$content)
+cen21_info<-as_tibble(parsed21$data)
+cen21_info
+```
