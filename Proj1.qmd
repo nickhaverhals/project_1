@@ -12,6 +12,8 @@ To start, I'm going to put my API key here for safe keeping:
 API_key<-"640ce0de32b08c9ded3cc11874a33ea9200c2c78"
 ```
 
+Just making changes because my html file is apparently not changing.
+
 Now, to get our data from the Public Use Microdata Sample Census API. 
 
 ```{r}
