@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Project1</title>
+<title>Project 1</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -87,7 +87,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Project1</h1>
+<h1 class="title">Project 1</h1>
 </div>
 
 
@@ -150,13 +150,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="parsing-api-data" class="level2">
 <h2 class="anchored" data-anchor-id="parsing-api-data">Parsing API Data</h2>
-<p>First up, I’ll try to query the API using the normal method.</p>
+<section id="first-bullet" class="level3">
+<h3 class="anchored" data-anchor-id="first-bullet">First bullet</h3>
+<p>First up, I’ll try to query the API using the normal method. Note that I kept the filtering from the given example to keep things from taking forever.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>test<span class="ot">&lt;-</span><span class="fu">GET</span>(<span class="st">"https://api.census.gov/data/2021/acs/acs1/pums?get=AGEP,SEX,ST&amp;for=state:*&amp;SCHL=24&amp;key=640ce0de32b08c9ded3cc11874a33ea9200c2c78"</span>)</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>test</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Response [https://api.census.gov/data/2021/acs/acs1/pums?get=AGEP,SEX,ST&amp;for=state:*&amp;SCHL=24&amp;key=640ce0de32b08c9ded3cc11874a33ea9200c2c78]
-  Date: 2026-09-27 22:21
+  Date: 2026-09-27 23:22
   Status: 200
   Content-Type: application/json;charset=utf-8
   Size: 1.12 MB
@@ -220,6 +222,62 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>Looks pretty good, I think, but what I did won’t translate nicely into the function I need to write next.</p>
+</section>
+<section id="second-bullet" class="level3">
+<h3 class="anchored" data-anchor-id="second-bullet">Second bullet</h3>
+<p>Now, we need to work on getting a function to make this happen. First off, let’s identify that input the function will need an API response as an input. I’ll call x the variables to query, given as a typed string, in quotation makes and separated by commas. Note that I also found the “set_names” function online, which means I can fix the column names all at once (instead of piecemeal).</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>make_tib<span class="ot">&lt;-</span><span class="cf">function</span>(x){</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  url<span class="ot">&lt;-</span><span class="fu">paste0</span>(<span class="st">"https://api.census.gov/data/2021/acs/acs1/pums?get="</span>,<span class="fu">as.character</span>(x),<span class="st">"&amp;for=state:*&amp;SCHL=24&amp;key=640ce0de32b08c9ded3cc11874a33ea9200c2c78"</span>)</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  q_res<span class="ot">&lt;-</span><span class="fu">GET</span>(url)</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>  query_parsed<span class="ot">&lt;-</span><span class="fu">fromJSON</span>(<span class="fu">rawToChar</span>(q_res<span class="sc">$</span>content))</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>  query_data<span class="ot">&lt;-</span><span class="fu">as_tibble</span>(query_parsed)<span class="sc">|&gt;</span></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">set_names</span>(query_parsed[<span class="dv">1</span>,])<span class="sc">|&gt;</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">slice</span>(<span class="sc">-</span><span class="dv">1</span>)</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>query_data  </span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Let’s take it for a spin:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make_tib</span>(<span class="st">"AGEP"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 41,592 × 3
+   AGEP  SCHL  state
+   &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;
+ 1 71    24    20   
+ 2 49    24    48   
+ 3 81    24    36   
+ 4 94    24    06   
+ 5 86    24    55   
+ 6 46    24    12   
+ 7 72    24    39   
+ 8 85    24    48   
+ 9 85    24    34   
+10 65    24    17   
+# ℹ 41,582 more rows</code></pre>
+</div>
+</div>
+<p>And again:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make_tib</span>(<span class="st">"AGEP,SEX,ST"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 41,592 × 5
+   AGEP  SEX   ST    SCHL  state
+   &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;
+ 1 71    1     20    24    20   
+ 2 49    1     48    24    48   
+ 3 81    2     36    24    36   
+ 4 94    1     06    24    06   
+ 5 86    2     55    24    55   
+ 6 46    1     12    24    12   
+ 7 72    2     39    24    39   
+ 8 85    2     48    24    48   
+ 9 85    1     34    24    34   
+10 65    1     17    24    17   
+# ℹ 41,582 more rows</code></pre>
+</div>
+</div>
+</section>
 </section>
 </section>
 
