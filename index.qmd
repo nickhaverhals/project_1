@@ -6,7 +6,7 @@ editor: visual
 
 # Getting data
 
-To start, I'm going to put my API key here for safe keeping: 
+To start, I'm going to put my API key here for safe keeping:
 
 ```{r}
 API_key<-"640ce0de32b08c9ded3cc11874a33ea9200c2c78"
