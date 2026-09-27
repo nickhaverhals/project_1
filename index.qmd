@@ -67,7 +67,14 @@ cen_vars24<-GET("https://api.census.gov/data/2024/acs/acs1/pums/variables.json?k
 parsed_vars24<-fromJSON(rawToChar(cen_vars24$content))
 ```
 
-
 ```{r}
 vars24<-parsed_vars24$variables[c("AGEP","GASP","GRPIP","JWAP","JWDP","JWMNP","PWGTP","FER","HHL","SCH","SCHL","SEX","STATE","REGION","DIVISION")]
 ```
+
+Alright, so I have my lists, now to save them in an .rds file: 
+
+```{r}
+var_lists<-list(vars21,vars22,vars23,vars24)
+saveRDS(var_lists,file="data/var_lists")
+```
+
