@@ -1,0 +1,33 @@
+---
+title: "Parsing API Data"
+format: html
+editor: visual
+---
+
+First up, I'll try to query the API using the normal method. 
+
+```{r}
+test<-GET("https://api.census.gov/data/2021/acs/acs1/pums?get=AGEP,SEX,ST&for=state:*&SCHL=24&key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
+test
+```
+
+```{r}
+test_parsed<-fromJSON(rawToChar(test$content))
+test_data<-as_tibble(test_parsed)
+```
+
+```{r}
+head(test_data)
+```
+
+
+So, it looks like what we got back has the names for the variables in the first row, so we should fix that. 
+
+```{r}
+test_data_fixed<-test_data|>
+  rename("AGEP"="V1","SEX"="V2","ST"="V3","SCHL"="V4","STATE"="V5")|>
+  slice(-1)
+test_data_fixed
+```
+
+Looks pretty good, I think, but what I did won't translate nicely into the function I need to write next. 
