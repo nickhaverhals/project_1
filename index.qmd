@@ -112,13 +112,11 @@ Looks pretty good, I think, but what I did won't translate nicely into the funct
 
 ### Second bullet
 
-Now, we need to work on getting a function to make this happen. First off, let's identify that input the function will need an API response as an input. I'll call x the variables to query, given as a typed string, in quotation makes and separated by commas. Note that I also found the "set_names" function online, which means I can fix the column names all at once (instead of piecemeal).
+Now, we need to work on getting a function that takes what's returned by GET() abd turns it into a nice tibble Note that I also found the "set_names" function online, which means I can fix the column names all at once (instead of piecemeal).
 
 ```{r}
 make_tib<-function(x){
-  url<-paste0("https://api.census.gov/data/2021/acs/acs1/pums?get=",as.character(x),"&for=state:*&SCHL=24&key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
-  q_res<-GET(url)
-  query_parsed<-fromJSON(rawToChar(q_res$content))
+  query_parsed<-fromJSON(rawToChar(x$content))
   query_data<-as_tibble(query_parsed)|>
     set_names(query_parsed[1,])|>
     slice(-1)
@@ -127,15 +125,11 @@ query_data
 
 ```
 
-Let's take it for a spin:
+Note that test is still a defined GET() output from before. Let's take it for a spin.
 
 ```{r}
-make_tib("AGEP")
+make_tib(test)
 ```
 
-And again:
-
-```{r}
-make_tib("AGEP,SEX,ST")
-```
+Seems alright!
 
