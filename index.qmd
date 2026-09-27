@@ -12,7 +12,15 @@ To start, I'm going to put my API key here for safe keeping:
 API_key<-"640ce0de32b08c9ded3cc11874a33ea9200c2c78"
 ```
 
-Now, to get our data from the Public Use Microdata Sample Census API for 2021 and, once that's working, adjust for the other years. 
+
+
+
+# Part 1: Data Processing
+
+## Parsing Variable Values
+
+
+The first thing I'm going to do is pull the list of variable names from the website, and parse them individually, starting with 2021.
 
 ```{r}
 #| message: false
@@ -21,31 +29,45 @@ Now, to get our data from the Public Use Microdata Sample Census API for 2021 an
 library(httr)
 library(jsonlite)
 library(tidyverse)
-cen_data21<-GET("https://api.census.gov/data/2021/acs/acs1/pums?get=AGEP,GASP,GRPIP,JWAP,JWDP,JWMNP,PWGTP,FER,HHL,SCH,SCHL,SEX,ST,REGION,DIVISION&key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
+cen_vars21<-GET("https://api.census.gov/data/2021/acs/acs1/pums/variables.json?key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
+parsed_vars21<-fromJSON(rawToChar(cen_vars21$content))
 ```
-
-Now that I have that, I'll try to start parsing it: 
-
-```{r}
-parsed21<-fromJSON(rawToChar(cen_data21$content))
-cen21_info<-as_tibble(parsed21$data)
-cen21_info
-```
-
-When running this, I see that the first row is actually the variable names so I need to pull those out. Once I do that I'll need to remove the top row.
-"
-```{r}
-cen21_info<-cen21_info|>
-rename("AGEP"="V1","GASP"="V2","GRPIP"="V3","JWAP"="V4","JWDP"="V5","JWMNP"="V6","PWGTP"="V7","FER"="V8","HHL"="V9","SCH"="V10","SCHL"="V11","SEX"="V12","ST"="V13","REGION"="V14","DIVISION"="V15")|>
-  slice(-1)
-cen21_info
-```
-
-Great! Now that I have the column names sorted, I can remove the top row of my tibble. 
-
 
 
 ```{r}
-cen21_info
+vars21<-parsed_vars21$variables[c("AGEP","GASP","GRPIP","JWAP","JWDP","JWMNP","PWGTP","FER","HHL","SCH","SCHL","SEX","ST","REGION","DIVISION")]
 ```
 
+Now to do 2022 I can just change a couple of 1's to 2's: 
+
+```{r}
+cen_vars22<-GET("https://api.census.gov/data/2022/acs/acs1/pums/variables.json?key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
+parsed_vars22<-fromJSON(rawToChar(cen_vars22$content))
+```
+
+
+```{r}
+vars22<-parsed_vars22$variables[c("AGEP","GASP","GRPIP","JWAP","JWDP","JWMNP","PWGTP","FER","HHL","SCH","SCHL","SEX","ST","REGION","DIVISION")]
+```
+
+For 2023 and 2024, though, I need to change the numbers, but also "ST" to "STATE":
+
+```{r}
+cen_vars23<-GET("https://api.census.gov/data/2023/acs/acs1/pums/variables.json?key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
+parsed_vars23<-fromJSON(rawToChar(cen_vars23$content))
+```
+
+
+```{r}
+vars23<-parsed_vars23$variables[c("AGEP","GASP","GRPIP","JWAP","JWDP","JWMNP","PWGTP","FER","HHL","SCH","SCHL","SEX","STATE","REGION","DIVISION")]
+```
+
+```{r}
+cen_vars24<-GET("https://api.census.gov/data/2024/acs/acs1/pums/variables.json?key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
+parsed_vars24<-fromJSON(rawToChar(cen_vars24$content))
+```
+
+
+```{r}
+vars24<-parsed_vars24$variables[c("AGEP","GASP","GRPIP","JWAP","JWDP","JWMNP","PWGTP","FER","HHL","SCH","SCHL","SEX","STATE","REGION","DIVISION")]
+```
