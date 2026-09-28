@@ -49,3 +49,18 @@ parsed_vars24<-fromJSON(rawToChar(cen_vars24$content))
 ```{r}
 vars24<-parsed_vars24$variables[c("AGEP","GASP","GRPIP","JWAP","JWDP","JWMNP","PWGTP","FER","HHL","SCH","SCHL","SEX","STATE","REGION","DIVISION")]
 ```
+
+At this point, for convenience later, I'm going to rename the state variables in vars21 and vars22 to match the other years.
+
+```{r}
+vars21$STATE<-vars21$ST
+vars22$STATE<-vars22$ST
+```
+
+Now, to avoid confusion, I'll remove the "ST" lists from vars21 & vars22:
+
+```{r}
+vars21$ST<-NULL
+vars22$ST<-NULL
+```
+

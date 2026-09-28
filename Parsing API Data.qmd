@@ -60,7 +60,7 @@ Now, the big one. We need to write a function that takes, as inputs, year of sur
 I'm going to start by naming the function and setting up the function defaults and creating error messages if/when improper calls are made. For now, I'm going to just make the function add 1 to a number so I can focus on the function setup (with a focus on functionality to come).
 
 ```{r}
-make_query<-function(x,year=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STATE",geo_vars="everything"){
+validate_query<-function(x,year=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STATE",geo_vars="everything"){
   if(year!=2024 & year!=2023 & year != 2022 & year != 2021){
     stop("You must enter year value of 2021, 2022, 2023 or use default of 2024.")
   }
@@ -70,11 +70,8 @@ make_query<-function(x,year=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STATE
   if(sum(cat_vars %in% c("FER", "HHL", "SCH", "SCHL","SEX"))!=length(cat_vars) ){
     stop("You must enter a subset of the following categorical variables: FER, HHL, SCH, SCHL,SEX.")
   }
-  if((year == 2021 | year == 2022) & (geo_level %in% c("ST","REGION","DIVISION") != 1)){
-    stop("You must enter select of the following geographical levels: ST (for year 2021 or 2022)/ STATE (for tear 2023 or 2024), REGION or DIVISION.")
-  }
-  if((year == 2023 | year == 2024) & (geo_level %in% c("STATE","REGION","DIVISION") != 1)){
-    stop("You must enter select of the following geographical levels: ST (for year 2021 or 2022)/ STATE (for tear 2023 or 2024), REGION or DIVISION.")
+  if(geo_level %in% c("STATE","REGION","DIVISION") != 1){
+    stop("You must enter select of the following geographical levels: STATE, REGION or DIVISION.")
   }
   x+1
 }
