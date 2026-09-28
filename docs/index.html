@@ -158,7 +158,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>test</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Response [https://api.census.gov/data/2021/acs/acs1/pums?get=AGEP,SEX,ST&amp;for=state:*&amp;SCHL=24&amp;key=640ce0de32b08c9ded3cc11874a33ea9200c2c78]
-  Date: 2026-09-27 23:41
+  Date: 2026-09-28 14:42
   Status: 200
   Content-Type: application/json;charset=utf-8
   Size: 1.12 MB
@@ -256,6 +256,32 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>Seems alright!</p>
+</section>
+<section id="third-bullet" class="level3">
+<h3 class="anchored" data-anchor-id="third-bullet">Third bullet</h3>
+<p>Now, the big one. We need to write a function that takes, as inputs, year of survey (default of 2024), numeric variables (default to AGEP, with PWGTP always returned), categorical variables (at least one, with SEX as the default), geography level (default to STATE) and one specific value of the variable.</p>
+<p>I’m going to start by naming the function and setting up the function defaults and creating error messages if/when improper calls are made. For now, I’m going to just make the function add 1 to a number so I can focus on the function setup (with a focus on functionality to come).</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>make_query<span class="ot">&lt;-</span><span class="cf">function</span>(x,<span class="at">year=</span><span class="dv">2024</span>,<span class="at">num_vars=</span><span class="st">"AGEP"</span>,<span class="at">cat_vars=</span><span class="st">"SEX"</span>,<span class="at">geo_level=</span><span class="st">"STATE"</span>,<span class="at">geo_vars=</span><span class="st">"everything"</span>){</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span>(year<span class="sc">!=</span><span class="dv">2024</span> <span class="sc">&amp;</span> year<span class="sc">!=</span><span class="dv">2023</span> <span class="sc">&amp;</span> year <span class="sc">!=</span> <span class="dv">2022</span> <span class="sc">&amp;</span> year <span class="sc">!=</span> <span class="dv">2021</span>){</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">stop</span>(<span class="st">"You must enter year value of 2021, 2022, 2023 or use default of 2024. please enter 'Q' or press Esc to try again."</span>)</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span>(<span class="fu">sum</span>(num_vars <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"AGEP"</span>, <span class="st">"GASP"</span>, <span class="st">"GRPIP"</span>, <span class="st">"JWAP"</span>,<span class="st">"JWDP"</span>))<span class="sc">!=</span><span class="fu">length</span>(num_vars) ){</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">stop</span>(<span class="st">"You must enter a subset of the following numerical variables: AGEP, GASP, GRPIP, JWAP, JWDP. Please enter 'Q' or press Esc to try again."</span>)</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span>(<span class="fu">sum</span>(cat_vars <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"FER"</span>, <span class="st">"HHL"</span>, <span class="st">"SCH"</span>, <span class="st">"SCHL"</span>,<span class="st">"SEX"</span>))<span class="sc">!=</span><span class="fu">length</span>(cat_vars) ){</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">stop</span>(<span class="st">"You must enter a subset of the following categorical variables: FER, HHL, SCH, SCHL,SEX. Please enter 'Q' or press Esc to try again."</span>)</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span>((year <span class="sc">==</span> <span class="dv">2021</span> <span class="sc">|</span> year <span class="sc">==</span> <span class="dv">2022</span>) <span class="sc">&amp;</span> (geo_level <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"ST"</span>,<span class="st">"REGION"</span>,<span class="st">"DIVISION"</span>) <span class="sc">!=</span> <span class="dv">1</span>)){</span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">stop</span>(<span class="st">"You must enter select of the following geographical levels: ST (for year 2021 or 2022)/ STATE (for tear 2023 or 2024), REGION or DIVISION. Please enter 'Q' or press Esc to try again."</span>)</span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span>((year <span class="sc">==</span> <span class="dv">2023</span> <span class="sc">|</span> year <span class="sc">==</span> <span class="dv">2024</span>) <span class="sc">&amp;</span> (geo_level <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"STATE"</span>,<span class="st">"REGION"</span>,<span class="st">"DIVISION"</span>) <span class="sc">!=</span> <span class="dv">1</span>)){</span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">stop</span>(<span class="st">"You must enter select of the following geographical levels: ST (for year 2021 or 2022)/ STATE (for tear 2023 or 2024), REGION or DIVISION. Please enter 'Q' or press Esc to try again."</span>)</span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>  x<span class="sc">+</span><span class="dv">1</span></span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>I’ve done a fair mount of testing with the above conditional statements and STOP commands and I think I’m ready to have the function actually do what it’s meant to do.</p>
 </section>
 </section>
 </section>

@@ -133,3 +133,31 @@ make_tib(test)
 
 Seems alright!
 
+### Third bullet
+
+Now, the big one. We need to write a function that takes, as inputs, year of survey (default of 2024), numeric variables (default to AGEP, with PWGTP always returned), categorical variables (at least one, with SEX as the default), geography level (default to STATE) and one specific value of the variable.
+
+I'm going to start by naming the function and setting up the function defaults and creating error messages if/when improper calls are made. For now, I'm going to just make the function add 1 to a number so I can focus on the function setup (with a focus on functionality to come).
+
+```{r}
+make_query<-function(x,year=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STATE",geo_vars="everything"){
+  if(year!=2024 & year!=2023 & year != 2022 & year != 2021){
+    stop("You must enter year value of 2021, 2022, 2023 or use default of 2024. please enter 'Q' or press Esc to try again.")
+  }
+  if(sum(num_vars %in% c("AGEP", "GASP", "GRPIP", "JWAP","JWDP"))!=length(num_vars) ){
+    stop("You must enter a subset of the following numerical variables: AGEP, GASP, GRPIP, JWAP, JWDP. Please enter 'Q' or press Esc to try again.")
+  }
+  if(sum(cat_vars %in% c("FER", "HHL", "SCH", "SCHL","SEX"))!=length(cat_vars) ){
+    stop("You must enter a subset of the following categorical variables: FER, HHL, SCH, SCHL,SEX. Please enter 'Q' or press Esc to try again.")
+  }
+  if((year == 2021 | year == 2022) & (geo_level %in% c("ST","REGION","DIVISION") != 1)){
+    stop("You must enter select of the following geographical levels: ST (for year 2021 or 2022)/ STATE (for tear 2023 or 2024), REGION or DIVISION. Please enter 'Q' or press Esc to try again.")
+  }
+  if((year == 2023 | year == 2024) & (geo_level %in% c("STATE","REGION","DIVISION") != 1)){
+    stop("You must enter select of the following geographical levels: ST (for year 2021 or 2022)/ STATE (for tear 2023 or 2024), REGION or DIVISION. Please enter 'Q' or press Esc to try again.")
+  }
+  x+1
+}
+```
+
+I've done a fair mount of testing with the above conditional statements and STOP commands and I think I'm ready to have the function actually do what it's meant to do. 
