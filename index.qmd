@@ -223,3 +223,9 @@ make_query<-function(yr=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STATE",ge
     make_tib()
 }
 ```
+Now, to test it a bit:
+
+```{r}
+make_query(geo_level="REGION",num_vars = c("GRPIP","GASP","JWAP"),yr=2021,geo_vars = 4)
+```
+ Hurray! Now I need to start working on the columns. 
