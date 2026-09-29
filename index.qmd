@@ -240,72 +240,7 @@ fix_cols<-function(x){
   rn<-colnames(x)<-toupper(colnames(x))
   num_list <- c("PWGTP", intersect(rn, c("AGEP", "GASP", "GRPIP")))
   x<-mutate(x,across(all_of(num_list),as.numeric))
-  
-  cat_list<-intersect(rn,c("FER","HHL","SCH","SEX","REGION","STATE","DIVISION"))
-  ## 2021
-  if(yr==2021 && "FER" %in% cat_list){
-    x<-mutate(x,FER_F=factor(unlist(vars2021$FER$values$item)[x$FER],levels=unname(unlist(vars2021$FER$values$item))))
-  }
-  if(yr==2021 && "HHL" %in% cat_list){
-    x<-mutate(x,HHL_F=factor(unlist(vars2021$HHL$values$item)[x$HHL],levels=unname(unlist(vars2021$HHL$values$item))))
-  }
-  if(yr==2021 && "SCH" %in% cat_list){
-    x<-mutate(x,SCH_F=factor(unlist(vars2021$SCH$values$item)[x$SCH],levels=unname(unlist(vars2021$SCH$values$item))))
-  }
-  if(yr==2021 && "SEX" %in% cat_list){
-    x<-mutate(x,SEX_F=factor(unlist(vars2021$SEX$values$item)[x$SEX],levels=unname(unlist(vars2021$SEX$values$item))))
-  }
-  if(yr==2021 && "REGION" %in% cat_list){
-    x<-mutate(x,REGION_F=factor(unlist(vars2021$REGION$values$item)[x$REGION],levels=unname(unlist(vars2021$REGION$values$item))))
-  }
-  ## 2022
-  if(yr==2022 && "FER" %in% cat_list){
-    x<-mutate(x,FER_F=factor(unlist(vars2022$FER$values$item)[x$FER],levels=unname(unlist(vars2022$FER$values$item))))
-  }
-  if(yr==2022 && "HHL" %in% cat_list){
-    x<-mutate(x,HHL_F=factor(unlist(vars2022$HHL$values$item)[x$HHL],levels=unname(unlist(vars2022$HHL$values$item))))
-  }
-  if(yr==2022 && "SCH" %in% cat_list){
-    x<-mutate(x,SCH_F=factor(unlist(vars2022$SCH$values$item)[x$SCH],levels=unname(unlist(vars2022$SCH$values$item))))
-  }
-  if(yr==2022 && "SEX" %in% cat_list){
-    x<-mutate(x,SEX_F=factor(unlist(vars2022$SEX$values$item)[x$SEX],levels=unname(unlist(vars2022$SEX$values$item))))
-  }
-  if(yr==2022 && "REGION" %in% cat_list){
-    x<-mutate(x,REGION_F=factor(unlist(vars2022$REGION$values$item)[x$REGION],levels=unname(unlist(vars2022$REGION$values$item))))
-  }
-  ##2023
-  if(yr==2023 && "FER" %in% cat_list){
-    x<-mutate(x,FER_F=factor(unlist(vars2023$FER$values$item)[x$FER],levels=unname(unlist(vars2023$FER$values$item))))
-  }
-  if(yr==2023 && "HHL" %in% cat_list){
-    x<-mutate(x,HHL_F=factor(unlist(vars2023$HHL$values$item)[x$HHL],levels=unname(unlist(vars2023$HHL$values$item))))
-  }
-  if(yr==2023 && "SCH" %in% cat_list){
-    x<-mutate(x,SCH_F=factor(unlist(vars2023$SCH$values$item)[x$SCH],levels=unname(unlist(vars2023$SCH$values$item))))
-  }
-  if(yr==2023 && "SEX" %in% cat_list){
-    x<-mutate(x,SEX_F=factor(unlist(vars2023$SEX$values$item)[x$SEX],levels=unname(unlist(vars2023$SEX$values$item))))
-  }
-  if(yr==2023 && "REGION" %in% cat_list){
-    x<-mutate(x,REGION_F=factor(unlist(vars2023$REGION$values$item)[x$REGION],levels=unname(unlist(vars2023$REGION$values$item))))
-  }
-  ## 2024
-  if(yr==2024 && "FER" %in% cat_list){
-    x<-mutate(x,FER_F=factor(unlist(vars2024$FER$values$item)[x$FER],levels=unname(unlist(vars2024$FER$values$item))))
-  }
-  if(yr==2024 && "HHL" %in% cat_list){
-    x<-mutate(x,HHL_F=factor(unlist(vars2024$HHL$values$item)[x$HHL],levels=unname(unlist(vars2024$HHL$values$item))))
-  }
-  if(yr==2024 && "SCH" %in% cat_list){
-    x<-mutate(x,SCH_F=factor(unlist(vars2024$SCH$values$item)[x$SCH],levels=unname(unlist(vars2024$SCH$values$item))))
-  }
-  if(yr==2024 && "SEX" %in% cat_list){
-    x<-mutate(x,SEX_F=factor(unlist(vars2024$SEX$values$item)[x$SEX],levels=unname(unlist(vars2024$SEX$values$item))))
-  }
-  if(yr==2024 && "REGION" %in% cat_list){
-    x<-mutate(x,REGION_F=factor(unlist(vars2024$REGION$values$item)[x$REGION],levels=unname(unlist(vars2024$REGION$values$item))))
-  }
+ cat_list<-intersect(rn,c("FER","HHL","SCH","SEX","REGION","STATE","DIVISION"))
 x
 }
 
