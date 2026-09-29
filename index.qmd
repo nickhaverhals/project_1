@@ -105,8 +105,9 @@ test
 
 ```{r}
 test_parsed<-fromJSON(rawToChar(test$content))
-test_data<-as_tibble(test_parsed)
+test_data<-as_tibble(test_parsed,.name_repair = "unique")
 ```
+I got an error stating that the I must have unique column names and I found help related to name_repair online to fix that. Now, to look at what's coming out of this...
 
 ```{r}
 head(test_data)
@@ -117,7 +118,7 @@ So, it looks like what we got back has the names for the variables in the first 
 
 ```{r}
 test_data_fixed<-test_data|>
-  rename("AGEP"="V1","SEX"="V2","ST"="V3","SCHL"="V4","STATE"="V5")|>
+  rename("AGEP"="...1","SEX"="...2","ST"="...3","SCHL"="...4","STATE"="...5")|>
   slice(-1)
 test_data_fixed
 ```
@@ -126,7 +127,7 @@ Looks pretty good, I think, but what I did won't translate nicely into the funct
 
 ### Second bullet
 
-Now, we need to work on getting a function that takes what's returned by GET() abd turns it into a nice tibble Note that I also found the "set_names" function online, which means I can fix the column names all at once (instead of piecemeal).
+Now, we need to work on getting a function that takes what's returned by GET() and turns it into a nice tibble Note that I also found the "set_names" function online, which means I can fix the column names all at once (instead of piecemeal).
 
 ```{r}
 make_tib<-function(x){
@@ -154,32 +155,71 @@ Now, the big one. We need to write a function that takes, as inputs, year of sur
 I'm going to start by  setting up the function defaults and creating error messages if/when improper calls are made. For now, I'm going to just make the function add 1 to a number so I can focus on the function setup (with a focus on functionality to come).
 
 ```{r}
-validation_test<-function(x,year=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STATE",geo_vars="All"){
-  if(year!=2024 & year!=2023 & year != 2022 & year != 2021){
+query_validation<-function(yr=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STATE",geo_vars="All",x=5){
+  if(yr!=2024 & yr!=2023 & yr != 2022 & yr != 2021){
     stop("year error: You must enter year value of 2021, 2022, 2023 or use default of 2024.")
   }
   if(sum(num_vars %in% c("AGEP", "GASP", "GRPIP", "JWAP","JWDP"))!=length(num_vars) ){
     stop("num_vars error: You must enter a subset of the following numerical variables: AGEP, GASP, GRPIP, JWAP, JWDP.")
   }
-  if(sum(cat_vars %in% c("FER", "HHL", "SCH", "SCHL","SEX"))!=length(cat_vars) ){
-    stop("car_vars error: You must enter a subset of the following categorical variables: FER, HHL, SCH, SCHL,SEX.")
+  if(sum(cat_vars %in% c("FER", "HHL", "SCH", "SCHL","SEX"))!=length(cat_vars) || length(cat_vars)==0){
+    stop("car_vars error: You must enter a nonempty subset of the following categorical variables: FER, HHL, SCH, SCHL,SEX.")
   }
-  if(geo_level %in% c("STATE","REGION","DIVISION") != 1){
-    stop("geo_level error: You must enter select of the following geographical levels: STATE, REGION or DIVISION.")
+  if(length(geo_level)>1 || geo_level %in% c("STATE","REGION","DIVISION") != 1){
+    stop("geo_level error: You must select one of the following geographical levels: STATE, REGION or DIVISION.")
   }
-  if(geo_level == "REGION" & !"All" %in% geo_vars & !all(geo_vars %in% unlist(vars24$REGION$values$item))){
-    stop("geo_var error: You must select one or more of the following regions: Northeast, South, Puerto Rico, Midwest, or West.")
+  if(geo_level == "REGION" & !"All" %in% geo_vars & !all(geo_vars %in% names(vars24$REGION$values$item))){
+    print(unlist(vars24$REGION$values$item))
+    stop("geo_var error: You must select one or more of the regions listed above. Be sure to use the provided (numeric) label.For example, set geo_vars=c(1,2) for Northeast and Midwest.")
   }
   if(geo_level == "STATE" & !"All" %in% geo_vars & !all(geo_vars %in% unlist(vars24$STATE$values$item))){
     print(unlist(vars24$STATE$values$item))
-    stop("geo_var error: You must select one or more of the states from the list above.")
+    stop("geo_var error: You must select one or more of the states from the list above. Be sure to use the provided (numeric) label.For example, set geo_vars=c(1,2) for Alabama and Alaska.")
   }
   if(geo_level == "DIVISION" & !"All" %in% geo_vars & !all(geo_vars %in% unlist(vars24$DIVISION$values$item))){
     print(unlist(vars24$DIVISION$values$item))
-    stop("geo_var error: You must select one or more of the divisions from the list above.")
+    stop("geo_var error: You must select one or more of the divisions from the list above. Be sure to use the provided (numeric) label. For example, set geo_vars=c(0,1) for Puerto Rico and New England (Northeast region).")
   }
   x+1
 }
 ```
 
-Alright, it looks like all my validation stuff is working (at least, the logical tests are), so I'll now make it's own function that I'll then call in the main query function. 
+Alright, it looks like all my validation stuff is working (at least, the logical tests are), so I'll hopefully be able to call it in my main query function. I'll start by making my function slowly, by first putting it together with a carefully curated URL, then add in the validation and tibble-making functions. Note that I'm going to start with the same defaults as I have for the validation function so, hopefully all the variables but 'x' get passed in nicely. 
+
+It's worth noting here that I had a really hard time getting this to work out. For example, I initially ran into trouble because, when I wanted multiple  numerical and/or categorical variables, it would create a new URL for each value in the variable. It also took me quite a while to get the ability to pick geography level, and then either all or a subset of the variable values within the level selected. I amended the error code above to provided the lists the user could use to find the labels they need. As you can see below, the paste() and paste() functions where handy here when it came time to tie all together in the url for GET().
+
+```{r}
+make_query<-function(yr=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STATE",geo_vars="All"){
+  if((yr==2021 || yr==2022) && ("STATE" %in% geo_level)){
+    geo_level<-"state"
+  }
+  if("ALL" %in% geo_vars){
+    geo<-paste0("&for=",geo_level,":*")
+  }else{
+    geo<-paste0("&for=",geo_level,":",paste(geo_vars,collapse=","))
+  }
+  link<-paste0("https://api.census.gov/data/",yr,"/acs/acs1/pums?get=",paste(num_vars,collapse=","),",",paste(cat_vars,collapse=","),",PWGTP",geo,"&key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
+  GET(link)
+}
+```
+
+I think it's working. *Crosses fingers real tight.* 
+
+Next up, I"m going to expand my function to, first, run the validation (which should stop the whole shebang if it fails), then construct the link, then tibble-fy it all using the functions from before.  
+
+```{r}
+make_query<-function(yr=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STATE",geo_vars="All"){
+  query_validation(yr,num_vars,cat_vars,geo_level,geo_vars,x=5)
+  if((yr==2021 || yr==2022) && ("STATE" %in% geo_level)){
+    geo_level<-"state"
+  }
+  if("All" %in% geo_vars){
+    geo<-paste0("&for=",geo_level,":*")
+  }else{
+    geo<-paste0("&for=",geo_level,":",paste(geo_vars,collapse=","))
+  }
+  link<-paste0("https://api.census.gov/data/",yr,"/acs/acs1/pums?get=",paste(num_vars,collapse=","),",",paste(cat_vars,collapse=","),",PWGTP",geo,"&key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
+  GET(link)|>
+    make_tib()
+}
+```
