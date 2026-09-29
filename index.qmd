@@ -29,6 +29,7 @@ The first thing I'm going to do is pull the list of variable names from the webs
 library(httr)
 library(jsonlite)
 library(tidyverse)
+options(error = NULL)
 cen_vars21<-GET("https://api.census.gov/data/2021/acs/acs1/pums/variables.json?key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
 parsed_vars21<-fromJSON(rawToChar(cen_vars21$content))
 ```
@@ -226,6 +227,23 @@ make_query<-function(yr=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STATE",ge
 Now, to test it a bit:
 
 ```{r}
-make_query(geo_level="REGION",num_vars = c("GRPIP","GASP","JWAP"),yr=2021,geo_vars = 4)
+tib<-make_query(geo_level="REGION",num_vars = c("GRPIP","GASP","JWAP"),yr=2021,geo_vars = 4)
 ```
  Hurray! Now I need to start working on the columns. 
+ 
+ To work on the columns, I'm going to first create some functions and then fold them into the make_query function above. My plan is to start with the easiest columns (any non-time numeric variables), then handle the categorical ones and then end with using an LLM to sort out the time variables. 
+ 
+```{r}
+fix_cols<-function(x){
+  rn<-colnames(x)
+  num_list <- c("PWGTP", intersect(rn, c("AGEP", "GASP", "GRPIP")))
+  mutate(x,across(all_of(num_list),as.numeric))
+  
+  cat_list<-intersect(rn,c("FER","HHL","SCH","SEX"))
+  
+}
+fix_cols(tib)
+```
+ 
+ 
+ 
