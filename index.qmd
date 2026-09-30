@@ -30,8 +30,14 @@ I'll also use this block to load the libraries I'll be using and set the option 
 library(httr)
 library(jsonlite)
 library(tidyverse)
-options(error = NULL)
+library(lubridate)
+```
 
+```{r}
+options(error = NULL)
+```
+
+```{r}
 #Get first set of variables.
 cen_vars21<-GET("https://api.census.gov/data/2021/acs/acs1/pums/variables.json?key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
 parsed_vars21<-fromJSON(rawToChar(cen_vars21$content))
@@ -164,28 +170,28 @@ I'm going to start by  setting up the function defaults and creating error messa
 
 ```{r}
 #Setting up query validation function. Note "x" and "x+1" there to give funciton something to do besides just check inputs.
-query_validation<-function(yr=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STATE",geo_vars="All",x=5){
+query_validation<-function(yr=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STATE",geo_vars="ALL",x=5){
   if(yr!=2024 & yr!=2023 & yr != 2022 & yr != 2021){
     stop("year error: You must enter year value of 2021, 2022, 2023 or use default of 2024.")
   }
   if(sum(num_vars %in% c("AGEP", "GASP", "GRPIP", "JWAP","JWDP"))!=length(num_vars) ){
     stop("num_vars error: You must enter a subset of the following numerical variables: AGEP, GASP, GRPIP, JWAP, JWDP.")
   }
-  if(sum(cat_vars %in% c("FER", "HHL", "SCH", "SCHL","SEX"))!=length(cat_vars) || length(cat_vars)==0){
+  if(sum(cat_vars %in% c("FER", "HHL", "SCH", "SCHL","SEX","STATE","REGION","DIVISION"))!=length(cat_vars) || length(cat_vars)==0){
     stop("car_vars error: You must enter a nonempty subset of the following categorical variables: FER, HHL, SCH, SCHL,SEX.")
   }
   if(length(geo_level)>1 || geo_level %in% c("STATE","REGION","DIVISION") != 1){
     stop("geo_level error: You must select one of the following geographical levels: STATE, REGION or DIVISION.")
   }
-  if(geo_level == "REGION" & !"All" %in% geo_vars & !all(geo_vars %in% names(vars2024$REGION$values$item))){
+  if(geo_level == "REGION" & !toupper(geo_vars) %in% geo_vars & !all(geo_vars %in% names(vars2024$REGION$values$item))){
     print(unlist(vars2024$REGION$values$item))
     stop("geo_var error: You must select one or more of the regions listed above. Be sure to use the provided (numeric) label.For example, set geo_vars=c(1,2) for Northeast and Midwest.")
   }
-  if(geo_level == "STATE" & !"All" %in% geo_vars & !all(geo_vars %in% unlist(vars2024$STATE$values$item))){
+  if(geo_level == "STATE" & !toupper(geo_vars) %in% geo_vars & !all(geo_vars %in% unlist(vars2024$STATE$values$item))){
     print(unlist(vars2024$STATE$values$item))
     stop("geo_var error: You must select one or more of the states from the list above. Be sure to use the provided (numeric) label.For example, set geo_vars=c(1,2) for Alabama and Alaska.")
   }
-  if(geo_level == "DIVISION" & !"All" %in% geo_vars & !all(geo_vars %in% unlist(vars2024$DIVISION$values$item))){
+  if(geo_level == "DIVISION" & !toupper(geo_vars) %in% geo_vars & !all(geo_vars %in% unlist(vars2024$DIVISION$values$item))){
     print(unlist(vars2024$DIVISION$values$item))
     stop("geo_var error: You must select one or more of the divisions from the list above. Be sure to use the provided (numeric) label. For example, set geo_vars=c(0,1) for Puerto Rico and New England (Northeast region).")
   }
@@ -193,70 +199,123 @@ query_validation<-function(yr=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STA
 }
 ```
 
-Alright, it looks like all my validation stuff is working (at least, the logical tests are), so I'll hopefully be able to call it in my main query function. I'll start by making my function slowly, by first putting it together with a carefully curated URL, then add in the validation and tibble-making functions. Note that I'm going to start with the same defaults as I have for the validation function so, hopefully all the variables but 'x' get passed in nicely. 
+Alright, it looks like all my validation stuff is working (at least, the logical tests are), so I'll hopefully be able to call it in my main query function. I started by making my function slowly, by first putting it together with a carefully curated URL, then adding in the validation and tibble-making functions. Then, I worked out how to assign the proper values within the categorical variable columns. So, what's presented here is out-of-sync with development. I didn't want to keep showing you the "make_query" function, then a new helper function, then "make_query" over again with the new helper added in. 
 
-It's worth noting here that I had a really hard time getting this to work out. For example, I initially ran into trouble because, when I wanted multiple  numerical and/or categorical variables, it would create a new URL for each value in the variable. It also took me quite a while to get the ability to pick geography level, and then either all or a subset of the variable values within the level selected. I amended the error code above to provided the lists the user could use to find the labels they need. As you can see below, the paste() and paste0() functions where handy here when it came time to tie all together in the url for GET().
+It's worth noting here that I had a really hard time getting all this to work out. For example, in constructing the URL, I initially ran into trouble because, when I wanted multiple  numerical and/or categorical variables, it would create a new URL for each value in the variable. It also took me quite a while to get the ability to pick geography level, and then either all or a subset of the variable values within the level selected. I amended the error code above to provided the lists the user could use to find the labels they need. 
+
+In the assigning-levels to the categorical variables, my plan was to start with the easiest columns (any non-time numeric variables), then handle the categorical ones and then end with using an LLM to sort out the time variables. I should note that, for the categorical variables, I got it working with a single year and variable first and then ran into trouble figuring out how to expand that to multiple variables within a loop. The technicality of how things get treated (e.g., what needs quotation marks, what types of things are allowed to follow a $, etc.) was really difficult for me but a helpful email got me going on that. Finally, I did end up relying on AI to take care of the time variables but the nice thing about LLM's is that they're pretty patient with users asking lots of questions about how things work (and explaining things one line at a time).
+
+To re-iterate my process a bit, I got my function working with defaults first, then folded in the validation (which should stop the whole shebang if it fails), then constructed the link, tibble-fied what came back using the functions from before, and then worked on the factors and levels. What you see below misrepresents the order of all that, but I didn't want to keep re-inserting the big function (make_query) every time I added to it. 
 
 ```{r}
-#Function to make query, with defaults set.
-make_query<-function(yr=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STATE",geo_vars="All"){
-  if((yr==2021 || yr==2022) && ("STATE" %in% geo_level)){
-    geo_level<-"state"
+
+# Helper to convert a single "HH:MM a.m. to HH:MM a.m." string to its midpoint time
+parse_time_midpoint <- function(time_str) {
+  # Return NA for missing, NA strings, or non-range values (e.g., "N/A", "Did not work")
+  if (is.na(time_str) || !grepl(" to ", time_str, ignore.case = TRUE)) {
+    return(as_hms(NA))
   }
-  if("ALL" %in% geo_vars){
-    geo<-paste0("&for=",geo_level,":*")
-  }else{
-    geo<-paste0("&for=",geo_level,":",paste(geo_vars,collapse=","))
+  
+  # Clean up Census 'a.m.'/'p.m.' formatting for lubridate parse_date_time
+  cleaned_str <- gsub("\\.", "", time_str) # turns "a.m." into "am"
+  parts <- unlist(strsplit(cleaned_str, " to ", ignore.case = TRUE))
+  
+  # Parse start and end as date-times on a dummy date. NOte that _dt is really talking about a time here, not a date.
+  start_dt <- parse_date_time(parts[1], orders = "I:M p")
+  end_dt   <- parse_date_time(parts[2], orders = "I:M p")
+  
+  # Handle overnight wraparound (e.g., 11:50 pm to 12:05 am)
+  if (!is.na(start_dt) && !is.na(end_dt) && end_dt < start_dt) {
+    end_dt <- end_dt + days(1)
   }
-  link<-paste0("https://api.census.gov/data/",yr,"/acs/acs1/pums?get=",paste(num_vars,collapse=","),",",paste(cat_vars,collapse=","),",PWGTP",geo,"&key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
-  GET(link)
+  
+  # Calculate midpoint time. Does calculations on times. Nice.
+  midpoint_dt <- start_dt + (end_dt - start_dt) / 2
+  
+  # Extract time component as hms object
+  as_hms(midpoint_dt)
+}
+
+# Vectorized version for use inside mutate(). This part showed me a potential work around for something I ran into before: R not running logical tests across vectors. Also, AI stepped me through the process of parsing the values once, then applying them to the values that show up.
+
+time_midpoint <- function(vec) {
+  #Identifies unique strings in the input vector
+  unique_vals <- unique(vec[!is.na(vec)])
+  # Applies the parsing function across the vector (once)
+  parsed_unique <- vapply(unique_vals, parse_time_midpoint, FUN.VALUE = hms(0))
+  # Creates a vector which is used to match up times and mid-points
+  names(parsed_unique) <- unique_vals
+  unname(parsed_unique[as.character(vec)])
 }
 ```
 
-I think it's working. *Crosses fingers real tight.* 
-
-Next up, I"m going to expand my function to, first, run the validation (which should stop the whole shebang if it fails), then construct the link, then tibble-fy it all using the functions from before.  
 
 ```{r}
-#Adding validation to function code from above.
-make_query<-function(yr=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STATE",geo_vars="All"){
+fix_cols<-function(x){
+  rn<-colnames(x)<-toupper(colnames(x))
+# Making numeric values numeric.
+    num_list <- c("PWGTP", intersect(rn, c("AGEP", "GASP", "GRPIP")))
+  x<-mutate(x,across(all_of(num_list),as.numeric))
+  
+  # Setting levels for categorical variables.
+ cat_list<-intersect(rn,c("FER","HHL","SCH","SEX","REGION","STATE","DIVISION","JWMNP"))
+ yr_called<-get(paste0("vars",yr))
+ 
+ #Assigning levels to categorical variables
+ for(var_called in cat_list){
+   # Get the right levels for right variable list
+   lvls<-unlist(yr_called[[var_called]]$values$item)
+   new_name<-paste0(var_called,"_F")
+   x<-mutate(x,!!new_name:=factor(lvls[x[[var_called]]],levels=unname(lvls)))
+ }
+ 
+ # Fix time variables. 
+ time_list=intersect(rn,c("JWAP","JWDP"))
+ for(var_called in time_list){
+   # Get the right levels for right variable list
+   lvls<-unlist(yr_called[[var_called]]$values$item)
+   # Gets values from tibble, feeds them into time_midpoint function
+   time_labels <- lvls[as.character(x[[var_called]])]
+   x[[var_called]] <- get_time_midpoint(time_labels)
+ }
+ 
+ 
+ # Move my new columns to the front, after a new YEAR column since we'll need it later
+ x<-mutate(x,YEAR=yr)|>
+   select(YEAR,ends_with("_F"),any_of(c("JWDP","JWAP"),everything()))
+x
+}
+
+```
+
+```{r}
+#Query function, with validation and tibble-making from above.
+make_query<-function(yr=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STATE",geo_vars="ALL"){
   query_validation(yr,num_vars,cat_vars,geo_level,geo_vars,x=5)
   if((yr==2021 || yr==2022) && ("STATE" %in% geo_level)){
     geo_level<-"state"
   }
-  if("All" %in% geo_vars){
+  if(toupper(geo_vars) %in% geo_vars){
     geo<-paste0("&for=",geo_level,":*")
   }else{
     geo<-paste0("&for=",geo_level,":",paste(geo_vars,collapse=","))
   }
   link<-paste0("https://api.census.gov/data/",yr,"/acs/acs1/pums?get=",paste(num_vars,collapse=","),",",paste(cat_vars,collapse=","),",PWGTP",geo,"&key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
   GET(link)|>
-    make_tib()
+    make_tib()|>
+    fix_cols()
 }
 ```
 Now, to test it a bit:
 
 ```{r}
 # Testing above function
-tib<-make_query(geo_level="REGION",cat_vars=c("FER","SEX"),num_vars = c("GRPIP","GASP","JWAP"),yr=2021,geo_vars = 4)
+tib<-make_query(geo_level="STATE",cat_vars=c("FER","SEX"),num_vars = c("GRPIP","GASP","JWAP"),yr=2021)
+tib
 ```
- Hurray! Now I need to start working on the columns. 
- 
- To work on the columns, I'm going to first create some functions and then fold them into the make_query function above. My plan is to start with the easiest columns (any non-time numeric variables), then handle the categorical ones and then end with using an LLM to sort out the time variables. 
- 
-I should note that, for the categorical variables below, I got it working with a single year and variable first and, although it's probably bad programming practice, I feel so slammed for time that I did the easiest thing: copy, paste, and change variables (and years).
- 
-```{r}
-# Reassigning columns with variable names.
-fix_cols<-function(x){
-  rn<-colnames(x)<-toupper(colnames(x))
-  num_list <- c("PWGTP", intersect(rn, c("AGEP", "GASP", "GRPIP")))
-  x<-mutate(x,across(all_of(num_list),as.numeric))
- cat_list<-intersect(rn,c("FER","HHL","SCH","SEX","REGION","STATE","DIVISION"))
-x
-}
 
-```
+ 
+
  
  
  
