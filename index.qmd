@@ -9,10 +9,9 @@ editor: visual
 To start, I'm going to put my API key here for safe keeping:
 
 ```{r}
-API_key<-"640ce0de32b08c9ded3cc11874a33ea9200c2c78"
+##Saving my key for easy retreival. 
+## 640ce0de32b08c9ded3cc11874a33ea9200c2c78
 ```
-
-
 
 
 # Part 1: Data Processing
@@ -20,7 +19,9 @@ API_key<-"640ce0de32b08c9ded3cc11874a33ea9200c2c78"
 ## Parsing Variable Values
 
 
-The first thing I'm going to do is pull the list of variable names from the website, and parse them individually, starting with 2021.
+The first thing I'm going to do is pull the list of variable names from the website, and parse them individually, starting with 2021. Mostly, I did it this way to get things figured out on a small scale before moving to the rest of the years. 
+
+I'll also use this block to load the libraries I'll be using and set the option I need but can't seem to fix globally.
 
 ```{r}
 #| message: false
@@ -30,58 +31,57 @@ library(httr)
 library(jsonlite)
 library(tidyverse)
 options(error = NULL)
+
+#Get first set of variables.
 cen_vars21<-GET("https://api.census.gov/data/2021/acs/acs1/pums/variables.json?key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
 parsed_vars21<-fromJSON(rawToChar(cen_vars21$content))
 ```
 
 
 ```{r}
+# Save the variables I want to keep.
 vars2021<-parsed_vars21$variables[c("AGEP","GASP","GRPIP","JWAP","JWDP","JWMNP","PWGTP","FER","HHL","SCH","SCHL","SEX","ST","REGION","DIVISION")]
 ```
 
 Now to do 2022 I can just change a couple of 1's to 2's: 
 
 ```{r}
+# Repeating the above for 2022.
 cen_vars22<-GET("https://api.census.gov/data/2022/acs/acs1/pums/variables.json?key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
 parsed_vars22<-fromJSON(rawToChar(cen_vars22$content))
 ```
 
 
 ```{r}
+# Ditto
 vars2022<-parsed_vars22$variables[c("AGEP","GASP","GRPIP","JWAP","JWDP","JWMNP","PWGTP","FER","HHL","SCH","SCHL","SEX","ST","REGION","DIVISION")]
 ```
 
 For 2023 and 2024, though, I need to change the numbers, but also "ST" to "STATE":
 
 ```{r}
+# Repeating the above for 2023.
 cen_vars23<-GET("https://api.census.gov/data/2023/acs/acs1/pums/variables.json?key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
 parsed_vars23<-fromJSON(rawToChar(cen_vars23$content))
-```
-
-
-```{r}
 vars2023<-parsed_vars23$variables[c("AGEP","GASP","GRPIP","JWAP","JWDP","JWMNP","PWGTP","FER","HHL","SCH","SCHL","SEX","STATE","REGION","DIVISION")]
 ```
 
 ```{r}
+# Repeating the above for 2024.
 cen_vars24<-GET("https://api.census.gov/data/2024/acs/acs1/pums/variables.json?key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
 parsed_vars24<-fromJSON(rawToChar(cen_vars24$content))
-```
-
-```{r}
 vars2024<-parsed_vars24$variables[c("AGEP","GASP","GRPIP","JWAP","JWDP","JWMNP","PWGTP","FER","HHL","SCH","SCHL","SEX","STATE","REGION","DIVISION")]
 ```
 
-t this point, for convenience later, I'm going to rename the state variables in vars2021 and vars2022 to match the other years.
+At this point, for convenience later, I'm going to rename the state variables in vars2021 and vars2022 to match the other years.
 
 ```{r}
+#Renaming STATE variables
 vars2021$STATE<-vars2021$ST
 vars2022$STATE<-vars2022$ST
-```
 
-Now, to avoid confusion, I'll remove the "ST" lists from vars2021 & vars2022:
+# To avoid confusion, I'll remove the "ST" lists from vars2021 & vars2022:
 
-```{r}
 vars2021$ST<-NULL
 vars2022$ST<-NULL
 ```
@@ -89,6 +89,7 @@ vars2022$ST<-NULL
 Alright, so I have my lists, now to save them in an .rds file: 
 
 ```{r}
+# Saving lists to RDS
 var_lists<-list(vars2021=vars2021,vars2022=vars2022,vars2023=vars2023,vars2024=vars2024)
 saveRDS(var_lists,file="data/var_lists")
 ```
@@ -100,17 +101,20 @@ saveRDS(var_lists,file="data/var_lists")
 First up, I'll try to query the API using the normal method. Note that I kept the filtering from the given example to keep things from taking forever. 
 
 ```{r}
+#Trial API pull
 test<-GET("https://api.census.gov/data/2021/acs/acs1/pums?get=AGEP,SEX,ST&for=state:*&SCHL=24&key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
 test
 ```
 
 ```{r}
+# Parsing result, fixing naming issue
 test_parsed<-fromJSON(rawToChar(test$content))
 test_data<-as_tibble(test_parsed,.name_repair = "unique")
 ```
 I got an error stating that the I must have unique column names and I found help related to name_repair online to fix that. Now, to look at what's coming out of this...
 
 ```{r}
+#Examine result
 head(test_data)
 ```
 
@@ -118,19 +122,21 @@ head(test_data)
 So, it looks like what we got back has the names for the variables in the first row, so we should fix that. 
 
 ```{r}
+#Renaming variable names
 test_data_fixed<-test_data|>
   rename("AGEP"="...1","SEX"="...2","ST"="...3","SCHL"="...4","STATE"="...5")|>
   slice(-1)
 test_data_fixed
 ```
 
-Looks pretty good, I think, but what I did won't translate nicely into the function I need to write next. 
+Looks pretty good, I think, but what I did won't translate nicely into the function I need to write next. Just wanted to develop a sense for how to do it.
 
 ### Second bullet
 
 Now, we need to work on getting a function that takes what's returned by GET() and turns it into a nice tibble Note that I also found the "set_names" function online, which means I can fix the column names all at once (instead of piecemeal).
 
 ```{r}
+#Functionalizing GET()
 make_tib<-function(x){
   query_parsed<-fromJSON(rawToChar(x$content))
   query_data<-as_tibble(query_parsed)|>
@@ -144,6 +150,7 @@ query_data
 Note that test is still a defined GET() output from before. Let's take it for a spin.
 
 ```{r}
+#Trying function
 make_tib(test)
 ```
 
@@ -156,6 +163,7 @@ Now, the big one. We need to write a function that takes, as inputs, year of sur
 I'm going to start by  setting up the function defaults and creating error messages if/when improper calls are made. For now, I'm going to just make the function add 1 to a number so I can focus on the function setup (with a focus on functionality to come).
 
 ```{r}
+#Setting up query validation function. Note "x" and "x+1" there to give funciton something to do besides just check inputs.
 query_validation<-function(yr=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STATE",geo_vars="All",x=5){
   if(yr!=2024 & yr!=2023 & yr != 2022 & yr != 2021){
     stop("year error: You must enter year value of 2021, 2022, 2023 or use default of 2024.")
@@ -187,9 +195,10 @@ query_validation<-function(yr=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STA
 
 Alright, it looks like all my validation stuff is working (at least, the logical tests are), so I'll hopefully be able to call it in my main query function. I'll start by making my function slowly, by first putting it together with a carefully curated URL, then add in the validation and tibble-making functions. Note that I'm going to start with the same defaults as I have for the validation function so, hopefully all the variables but 'x' get passed in nicely. 
 
-It's worth noting here that I had a really hard time getting this to work out. For example, I initially ran into trouble because, when I wanted multiple  numerical and/or categorical variables, it would create a new URL for each value in the variable. It also took me quite a while to get the ability to pick geography level, and then either all or a subset of the variable values within the level selected. I amended the error code above to provided the lists the user could use to find the labels they need. As you can see below, the paste() and paste() functions where handy here when it came time to tie all together in the url for GET().
+It's worth noting here that I had a really hard time getting this to work out. For example, I initially ran into trouble because, when I wanted multiple  numerical and/or categorical variables, it would create a new URL for each value in the variable. It also took me quite a while to get the ability to pick geography level, and then either all or a subset of the variable values within the level selected. I amended the error code above to provided the lists the user could use to find the labels they need. As you can see below, the paste() and paste0() functions where handy here when it came time to tie all together in the url for GET().
 
 ```{r}
+#Function to make query, with defaults set.
 make_query<-function(yr=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STATE",geo_vars="All"){
   if((yr==2021 || yr==2022) && ("STATE" %in% geo_level)){
     geo_level<-"state"
@@ -209,6 +218,7 @@ I think it's working. *Crosses fingers real tight.*
 Next up, I"m going to expand my function to, first, run the validation (which should stop the whole shebang if it fails), then construct the link, then tibble-fy it all using the functions from before.  
 
 ```{r}
+#Adding validation to function code from above.
 make_query<-function(yr=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STATE",geo_vars="All"){
   query_validation(yr,num_vars,cat_vars,geo_level,geo_vars,x=5)
   if((yr==2021 || yr==2022) && ("STATE" %in% geo_level)){
@@ -227,6 +237,7 @@ make_query<-function(yr=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STATE",ge
 Now, to test it a bit:
 
 ```{r}
+# Testing above function
 tib<-make_query(geo_level="REGION",cat_vars=c("FER","SEX"),num_vars = c("GRPIP","GASP","JWAP"),yr=2021,geo_vars = 4)
 ```
  Hurray! Now I need to start working on the columns. 
@@ -236,6 +247,7 @@ tib<-make_query(geo_level="REGION",cat_vars=c("FER","SEX"),num_vars = c("GRPIP",
 I should note that, for the categorical variables below, I got it working with a single year and variable first and, although it's probably bad programming practice, I feel so slammed for time that I did the easiest thing: copy, paste, and change variables (and years).
  
 ```{r}
+# Reassigning columns with variable names.
 fix_cols<-function(x){
   rn<-colnames(x)<-toupper(colnames(x))
   num_list <- c("PWGTP", intersect(rn, c("AGEP", "GASP", "GRPIP")))
