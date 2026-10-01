@@ -361,3 +361,31 @@ make<-multi_year_query(yrs=c(2021,2023),geo_level="DIVISION",geo_vars="2",cat_va
 make
 ```
 
+Looks like it's working! NGL, Part 1 was an absolute slog. Here's hoping Part 2 is infinitely differentiable. (Please forgive me, with my retraining I rarely get to make calc puns these days.)
+
+# Part 1: Data Processing
+
+## Numeric Summaries
+
+For this, we need to write a function that will take in the tibble created from our query and variables selected by the user and summarize them appropriately. As before, I attacked this problem a small piece at a time so what you see below grew as I added capability to it. 
+
+```{r}
+# Numerical summary function
+summary.census<-function(x,cat_vars=c("FER_F","HHL_F","SCH_F","SCHL_F","SEX_F","STATE_F", "REGION_F", "DIVISION_F"),num_vars=c("AGEP", "GASP", "GRPIP","JWMNP")){
+  big_sum<-list()
+  cats<-intersect(colnames(x),cat_vars)
+  #Clean up names a bit
+  for(c in cats){
+  newc<-unlist(strsplit(c, "[_]"))
+  sum_name<-paste0(newc[[1]],"_Count")
+  # Get counts
+  big_sum[[sum_name]]<-x|>
+  group_by(all_of(c))|>
+  drop_na(all_of(c))|>
+  summarize(count=n())
+  }
+  big_sum
+}
+
+```
+
