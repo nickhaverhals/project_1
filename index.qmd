@@ -347,11 +347,17 @@ multi_year_query<-function(yrs=c(2021,2022),num_vars="AGEP",cat_vars="SEX",geo_l
   }
   q_list=list()
   #Make a tibble for every year (and other variables) selected
-  for(y in yrs){
-     query_y<-make_query(y,num_vars=num_vars,cat_vars=cat_vars,geo_level=geo_level,geo_vars=geo_vars)
-     q_list<-list(q_list,query_y)
+  for(i in 1:length(yrs)){
+     q_list[[i]]<-make_query(yrs[i],num_vars=num_vars,cat_vars=cat_vars,geo_level=geo_level,geo_vars=geo_vars)
      }
-  all_years<-rbind(q_list)
+  all_years<-bind_rows(q_list)
   all_years
   }
 ```
+
+Giving it a shot: 
+```{r}
+make<-multi_year_query(yrs=c(2021,2023),geo_level="DIVISION",geo_vars="2",cat_vars=c("FER","SEX"),num_vars = c("GRPIP","GASP","JWAP"))
+make
+```
+
