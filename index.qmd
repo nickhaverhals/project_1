@@ -361,6 +361,18 @@ make<-multi_year_query(yrs=c(2021,2023),geo_level="DIVISION",geo_vars="2",cat_va
 make
 ```
 
+And again.
+
+```{r}
+make1<-multi_year_query(yrs=c(2021,2022,2024),geo_level="STATE",geo_vars="27",num_vars = c("AGEP","GASP"))
+make1
+```
+
+```{r}
+make2<-multi_year_query(geo_level="DIVISION",geo_vars="2",num_vars = c("AGEP"),cat_vars=c("SCH","SEX","HHL"))
+make2
+```
+
 Looks like it's working! NGL, Part 1 was an absolute slog. Here's hoping Part 2 is infinitely differentiable. (Please forgive me, with my retraining I rarely get to make calc puns these days.)
 
 # Part 1: Data Processing
@@ -371,7 +383,10 @@ For this, we need to write a function that will take in the tibble created from 
 
 ```{r}
 # Numerical summary function
-summary.census<-function(x,cat_vars=c("FER_F","HHL_F","SCH_F","SCHL_F","SEX_F","STATE_F", "REGION_F", "DIVISION_F"),num_vars=c("AGEP", "GASP", "GRPIP","JWMNP")){
+summary.census<-function(x,cat_vars=c("FER_F","HHL_F","SCH_F","SCHL_F","SEX_F","STATE_F", "REGION_F", "DIVISION_F"),num_vars=c("AGEP", "GASP", "GRPIP","JWMNP"), nsum=c("MEAN","STDEV")){
+  if(sum(nsum %in% c("MEAN","STDEV"))!=length(nsum)){
+    stop("nsum error: You must enter a subset of the following numerical summaries: MEAN,STDEV.")
+  }
   big_sum<-list()
   cats<-intersect(colnames(x),cat_vars)
   #Clean up names a bit
@@ -380,12 +395,45 @@ summary.census<-function(x,cat_vars=c("FER_F","HHL_F","SCH_F","SCHL_F","SEX_F","
   sum_name<-paste0(newc[[1]],"_Count")
   # Get counts
   big_sum[[sum_name]]<-x|>
-  group_by(all_of(c))|>
-  drop_na(all_of(c))|>
+  group_by(.data[[c]])|>
+  drop_na(.data[[c]])|>
   summarize(count=n())
+  }
+  # Now for the numeric variables.
+  nums<-intersect(colnames(x),num_vars)
+  # Get numerical summary
+  ## Mean
+  for(n in nums){
+    #Need for both
+    temp_Mean<-(sum(x[[n]]*x$PWGTP,na.rm = TRUE)/sum(x$PWGTP,na.rm = TRUE))
+    
+    if("MEAN" %in% nsum){
+    #Name new variable
+    sum_name<-paste0(n,"_MEAN")
+    #Calculate new variable
+    big_sum[[sum_name]]<-temp_Mean
+    }
+    ## For StDev
+    if("STDEV" %in% nsum){
+    #Name new variable
+    sum_name<-paste0(n,"_STDEV")
+    #Calculate new variable
+    big_sum[[sum_name]]<-sqrt(sum((x[[n]]-temp_Mean)^2*x$PWGTP,na.rm = TRUE)/sum(x$PWGTP,na.rm = TRUE))
+    } 
   }
   big_sum
 }
 
 ```
 
+Now to let `summary.census` stretch its legs.
+
+```{r}
+sum_it_up<-summary.census(make1)
+sum_it_up
+```
+
+```{r}
+sum_it_up<-summary.census(make2)
+sum_it_up
+```
