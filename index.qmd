@@ -335,3 +335,23 @@ Now, to test it a bit:
 try<-make_query(geo_level="DIVISION",geo_vars="2",cat_vars=c("FER","SEX"),num_vars = c("GRPIP","GASP","JWAP"),yr=2021)
 try
 ```
+
+## Combining years
+
+Now that I think I have my tibble-making query function working, I'm ready to try to combine a few. 
+```{r}
+multi_year_query<-function(yrs=c(2021,2022),num_vars="AGEP",cat_vars="SEX",geo_level="STATE",geo_vars="ALL"){
+  # Making sure we have valid years
+  if(sum(yrs %in% c(2021,2022,2023,2024))!=length(yrs) || length(yrs)==0){
+    stop("yrs error: You must enter a nonempty subset of the following 2021,2022,2023,2024")
+  }
+  q_list=list()
+  #Make a tibble for every year (and other variables) selected
+  for(y in yrs){
+     query_y<-make_query(y,num_vars=num_vars,cat_vars=cat_vars,geo_level=geo_level,geo_vars=geo_vars)
+     q_list<-list(q_list,query_y)
+     }
+  all_years<-rbind(q_list)
+  all_years
+  }
+```
