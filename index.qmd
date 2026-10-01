@@ -146,7 +146,7 @@ Now, we need to work on getting a function that takes what's returned by GET() a
 #Functionalizing GET()
 make_tib<-function(x){
   query_parsed<-fromJSON(rawToChar(x$content))
-  query_data<-as_tibble(query_parsed)|>
+  query_data<-as_tibble(query_parsed,.name_repair="unique_quiet")|>
     set_names(query_parsed[1,])|>
     slice(-1)
 query_data  
@@ -177,20 +177,21 @@ query_validation<-function(yr=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STA
   if(yr!=2024 & yr!=2023 & yr != 2022 & yr != 2021){
     stop("year error: You must enter year value of 2021, 2022, 2023 or use default of 2024.")
   }
-  if(sum(num_vars %in% c("AGEP", "GASP", "GRPIP", "JWAP","JWDP"))!=length(num_vars) ){
+  if(sum(num_vars %in% c("AGEP", "GASP", "GRPIP", "JWAP","JWDP","JWMNP"))!=length(num_vars) ){
     stop("num_vars error: You must enter a subset of the following numerical variables: AGEP, GASP, GRPIP, JWAP, JWDP or JWMNP.")
   }
   if(sum(cat_vars %in% c("FER", "HHL", "SCH", "SCHL","SEX"))!=length(cat_vars) || length(cat_vars)==0){
     stop("car_vars error: You must enter a nonempty subset of the following categorical variables: FER, HHL, SCH, SCHL,SEX.")
   }
+  if(geo_level=="ST"){geo_level<-"STATE"}
   if(length(geo_level)>1 || geo_level %in% c("STATE","REGION","DIVISION") != 1){
     stop("geo_level error: You must select one of the following geographical levels: STATE, REGION or DIVISION.")
   }
   if(geo_level == "REGION" && toupper(geo_vars[1]) != "ALL" && !all(as.character(geo_vars) %in% names(yr_called$REGION$values$item))){
     print(unlist(yr_called$REGION$values$item))
-    stop("geo_var error: Since geo_level selection is state, you must select one or more of the regions listed above. Be sure to use the provided (numeric) label.For example, set geo_vars=c('1','2') for Northeast and Midwest, where the single quotation marks are replaced with standard double quotation marks.")
+    stop("geo_var error: Since geo_level selection is region, you must select one or more of the regions listed above. Be sure to use the provided (numeric) label.For example, set geo_vars=c('1','2') for Northeast and Midwest, where the single quotation marks are replaced with standard double quotation marks.")
   }
-  if(geo_level == "STATE" && toupper(geo_vars[1]) != "ALL" && !all(as.character(geo_vars) %in% names(yr_called$STATE$values$item))){
+  if((geo_level == "STATE" || geo_level == "ST") && toupper(geo_vars[1]) != "ALL" && !all(as.character(geo_vars) %in% names(yr_called$STATE$values$item))){
     print(unlist(yr_called$STATE$values$item))
     stop("geo_var error: Since geo_level selection is state, you must select one or more of the states from the list above. Be sure to use the provided (numeric) label.For example, set geo_vars=c('01','02') for Alabama and Alaska, where the single quotation marks are replaced with standard double quotation marks.")
   }
@@ -199,6 +200,7 @@ query_validation<-function(yr=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STA
     stop("geo_var error: Since geo_level selection is division, you must select one or more of the divisions from the list above. Be sure to use the provided (numeric) label. For example, set geo_vars=c('0','1') for Puerto Rico and New England (Northeast region), where the single quotation marks are replaced with standard double quotation marks.")
   }
   x+1
+  return(geo_level)
 }
 ```
 #### Helper functions
@@ -255,40 +257,52 @@ time_midpoint <- function(vec) {
 
 
 ```{r}
-fix_cols<-function(x,yr){
-  rn<-colnames(x)<-toupper(colnames(x))
-# Making numeric values numeric.
-    num_list <- c("PWGTP", intersect(rn, c("AGEP", "GASP", "GRPIP","JWMNP")))
-  x<-mutate(x,across(all_of(num_list),as.numeric))
+fix_cols<-function(x,yr,cat_vars=NULL){
+  colnames(x)<-toupper(colnames(x))
+  # Setting ST to STATE, if necessary
+  if ("ST" %in% colnames(x) && !"STATE" %in% colnames(x)) {
+    colnames(x)[colnames(x) == "ST"] <- "STATE"
+  }
+  # Making numeric values numeric.
+    num_list <- c("PWGTP", intersect(colnames(x), c("AGEP", "GASP", "GRPIP","JWMNP")))
+  for (col in num_list) {
+    x[[col]] <- as.numeric(x[[col]])
+  }
   
   # Setting levels for categorical (and geographical) variables
- cat_list<-intersect(rn,c("FER","HHL","SCH","SCHL","SEX","STATE", "REGION", "DIVISION"))
+ cat_list<-intersect(colnames(x),c("FER","HHL","SCH","SCHL","SEX","STATE", "REGION", "DIVISION"))
+ 
  yr_called<-var_lists[[paste0("vars",yr)]]
  
  #Assigning levels to categorical (and geographical) variables
  for(var_called in cat_list){
    # Get the right levels for right variable list
+   if (!is.null(yr_called[[var_called]]$values$item)) {
    lvls<-unlist(yr_called[[var_called]]$values$item)
    new_name<-paste0(var_called,"_F")
-   x<-mutate(x,!!new_name:=factor(lvls[as.character(x[[var_called]])],levels=unname(lvls)))
+   x[[new_name]]<-factor(lvls[as.character(x[[var_called]])],levels=unname(lvls))
+   }
  }
+   
  
  # Fix time variables. 
- time_list=intersect(rn,c("JWAP","JWDP"))
+ time_list=intersect(colnames(x),c("JWAP","JWDP"))
  for(var_called in time_list){
    # Get the right levels for right variable list
+   if (!is.null(yr_called[[var_called]]$values$item)) {
    lvls<-unlist(yr_called[[var_called]]$values$item)
    # Gets values from tibble, feeds them into time_midpoint function
    time_labels <- lvls[as.character(x[[var_called]])]
    x[[var_called]] <- time_midpoint(time_labels)
+   }
  }
  
  
  # Move my new columns to the front, after a new YEAR column since we'll need it later
- x<-mutate(x,YEAR=yr)|>
-   select(PWGTP,YEAR,ends_with("_F"),any_of(c("JWDP","JWAP")),everything())
-x
+ x[["YEAR"]] <- yr
+ select(x, PWGTP, YEAR, ends_with("_F"), any_of(c("JWDP", "JWAP")),everything())
 }
+
 
 ```
 
@@ -296,28 +310,28 @@ x
 
 ```{r}
 #Query function, with validation and tibble-making from above.
-make_query<-function(yr=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STATE",geo_vars="27"){
+make_query<-function(yr=2024,num_vars="AGEP",cat_vars="SEX",geo_level="STATE",geo_vars="ALL"){
   query_validation(yr,num_vars,cat_vars,geo_level,geo_vars,x=5)
-  #if((yr==2021 || yr==2022) && ("STATE" %in% geo_level)){
-  #  geo_level<-"state"
-  #}
   geo_level_lower <- tolower(geo_level)
+  geo_level_lower<-if(geo_level_lower == "st"){"state"}else{geo_level_lower}
+  
   if(length(geo_vars)==1 && toupper(geo_vars) %in% "ALL"){
     geo<-paste0("&for=",geo_level_lower,":*")
   }else{
     geo<-paste0("&for=",geo_level_lower,":",paste(geo_vars,collapse=","))
   }
   link<-paste0("https://api.census.gov/data/",yr,"/acs/acs1/pums?get=",paste(num_vars,collapse=","),",",paste(cat_vars,collapse=","),",PWGTP",geo,"&key=640ce0de32b08c9ded3cc11874a33ea9200c2c78")
-  GET(link)|>
-    make_tib()|>
-    fix_cols(yr=yr)
+   first_call<-GET(link)
+   made_tib<-make_tib(first_call)
+   query_tibble<-fix_cols(made_tib,y=yr)
+   class(query_tibble)<-c("census",class(query_tibble))
+   query_tibble
+  #print(link)
 }
 ```
 Now, to test it a bit:
 
 ```{r}
-# Testing above function
-tib<-make_query(geo_level="STATE",cat_vars=c("FER","SEX"),num_vars = c("GRPIP","GASP","JWAP"),yr=2021,geo_vars="27")
-tib
+try<-make_query(geo_level="DIVISION",geo_vars="2",cat_vars=c("FER","SEX"),num_vars = c("GRPIP","GASP","JWAP"),yr=2021)
+try
 ```
-
