@@ -27,11 +27,10 @@ I'll also use this block to load the libraries I'll be using and set the option 
 #| message: false
 #| warning: false
 #| echo: false
+library(lubridate)
 library(httr)
 library(jsonlite)
 library(tidyverse)
-library(lubridate)
-library(hms)
 ```
 
 ```{r}
@@ -394,8 +393,8 @@ summary.census<-function(x,cat_vars=c("FER_F","HHL_F","SCH_F","SCHL_F","SEX_F","
   sum_name<-paste0(newc[[1]],"_Count")
   # Get counts
   big_sum[[sum_name]]<-x|>
-  group_by(.data[[c]])|>
   drop_na(.data[[c]])|>
+  group_by(.data[[c]])|>
   summarize(count=n())
   }
   # Now for the numeric variables.
@@ -471,6 +470,7 @@ During the trial and error process, I first ran the code above on the tibble `ma
 graph_it_up<-graph.census(make1,cat="SEX_F",num="AGEP")
 graph_it_up
 ```
+
 Being more confident that the code was working I was willing to let the function cook on the bigger tibbles: 
 
 ```{r}
@@ -485,13 +485,45 @@ For my investigation, I decided to look at the four regions included included in
 
 At first, I was going to get a tibble for the gas prices in each region for the years 2021 and 2024. As I was looking back through the notes, though, I saw the `facet_wrap` feature, so I'm going to get one big table with all the regions all at once. 
 
-```{r}
-# Get tibble
-regional_gasp<-multi_year_query(yrs=c(2021,2022,2023,2024),geo_level="REGION",geo_vars="ALL",num_vars = c("GASP"))
+Initially, when I tried this, I got this error: "Error in curl::curl_fetch_memory(url, handle = handle) : Failure when receiving data from the peer [api.census.gov]: Recv failure: Connection was reset." After looking online, this can happen when you make big data requests (all regions at once) in rapid succession (using `multi__year` four times, right in a row). 
 
+So, instead of asking for all for fours years, for all four regions all at once, I'm just going to ask for 2021 and 2024, and focus on three states: SD, ND, and MT. 
+
+```{r}
+# Get tibbles
+sd_gasp<-multi_year_query(yrs=c(2021,2024),geo_level="STATE",geo_vars=46,num_vars = c("GASP"))
+
+nd_gasp<-multi_year_query(yrs=c(2021,2024),geo_level="STATE",geo_vars=38,num_vars = c("GASP"))
+
+mt_gasp<-multi_year_query(yrs=c(2021,2024),geo_level="STATE",geo_vars=30,num_vars = c("GASP"))
+```
+
+```{r}
+# Now, to bind them together
+big_bind<-bind_rows(sd_gasp,nd_gasp,mt_gasp)
+big_bind
+```
+
+
+```{r}
 # Get boxplot
 
-gas_graph<-graph.census(regional_gasp,cat="YEAR",num="GASP")+facet_wrap(~REGION_F,ncol=2)
+gassy_graph<-graph.census(big_bind,cat="YEAR",num="GASP")+facet_wrap(~STATE_F,ncol=2)
 
-gas_graph
+gassy_graph
 ```
+This graph is really hard to read, due to some really big outliers, so I'm going to filter the tibble to start focusing down on reasonable values. 
+
+```{r}
+# Fitler data, get boxplot
+
+big_bind2<-filter(big_bind,GASP < 150)
+
+gassy_graph2<-graph.census(big_bind2,cat="YEAR",num="GASP")+facet_wrap(~STATE_F,ncol=2)
+
+gassy_graph2
+```
+
+As is probably obvious by now, I thought GASP was represented gas prices (and that those outliers were errors in entry or something) but I finally realized I was way off and looked up what it is and realized that gas price would not be something asked about on the census. 
+
+So, I'm shifting geears to looking at fertility with in these states. That means I need to pull some more data.
