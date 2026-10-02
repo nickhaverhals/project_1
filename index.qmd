@@ -6,13 +6,7 @@ editor: visual
 
 # Getting data
 
-To start, I'm going to put my API key here for safe keeping:
-
-```{r}
-##Saving my key for easy retreival. 
-## 640ce0de32b08c9ded3cc11874a33ea9200c2c78
-```
-
+To start, I'm going to put my API key here for safe keeping: 640ce0de32b08c9ded3cc11874a33ea9200c2c78
 
 # Part 1: Data Processing
 
@@ -218,7 +212,7 @@ To re-iterate my process a bit, I got my function working with defaults first, t
 parse_time_midpoint <- function(time_str) {
   # Return NA for missing, NA strings, or non-range values (e.g., "N/A", "Did not work")
   if (is.na(time_str) || !grepl(" to ", time_str, ignore.case = TRUE)) {
-    return(as_hms(NA))
+    return(hms::as_hms(NA))
   }
   
   # Clean up Census 'a.m.'/'p.m.' formatting for lubridate parse_date_time
@@ -238,7 +232,7 @@ parse_time_midpoint <- function(time_str) {
   midpoint_dt <- start_dt + (end_dt - start_dt) / 2
   
   # Extract time component as hms object
-  as_hms(midpoint_dt)
+  hms::as_hms(midpoint_dt)
 }
 
 # Vectorized version for use inside mutate(). This part showed me a potential work around for something I ran into before: R not running logical tests across vectors. Also, AI stepped me through the process of parsing the values once, then applying them to the values that show up.
@@ -247,7 +241,7 @@ time_midpoint <- function(vec) {
   #Identifies unique strings in the input vector
   unique_vals <- unique(vec[!is.na(vec)])
   # Applies the parsing function across the vector (once)
-  parsed_unique <- vapply(unique_vals, parse_time_midpoint, FUN.VALUE = hms(0))
+  parsed_unique <- vapply(unique_vals, parse_time_midpoint, FUN.VALUE = hms::hms(0))
   # Creates a vector which is used to match up times and mid-points
   names(parsed_unique) <- unique_vals
   unname(parsed_unique[as.character(vec)])
@@ -379,6 +373,8 @@ Looks like it's working! NGL, Part 1 was an absolute slog. Here's hoping Part 2 
 
 For this, we need to write a function that will take in the tibble created from our query and variables selected by the user and summarize them appropriately. As before, I attacked this problem a small piece at a time so what you see below grew as I added capability to it. 
 
+In fact, this is another place where I needed to add something after the fact so this isn't the original function. Specifically, I addded `#Summary stats grouped by cats` after I realized during the investigation that I wanted the mean for each state that had been called.
+
 ```{r}
 # Numerical summary function
 summary.census<-function(x,cat_vars=c("FER_F","HHL_F","SCH_F","SCHL_F","SEX_F","STATE_F", "REGION_F", "DIVISION_F"),num_vars=c("AGEP", "GASP", "GRPIP","JWMNP"), nsum=c("MEAN","STDEV")){
@@ -400,25 +396,43 @@ summary.census<-function(x,cat_vars=c("FER_F","HHL_F","SCH_F","SCHL_F","SEX_F","
   # Now for the numeric variables.
   nums<-intersect(colnames(x),num_vars)
   # Get numerical summary
-  ## Mean
-  for(n in nums){
+  
+  ## Overall mean for each column
+ 
+   for(n in nums){
     #Need for both
     temp_Mean<-(sum(x[[n]]*x$PWGTP,na.rm = TRUE)/sum(x$PWGTP,na.rm = TRUE))
     
     if("MEAN" %in% nsum){
+    
     #Name new variable
     sum_name<-paste0(n,"_MEAN")
     #Calculate new variable
     big_sum[[sum_name]]<-temp_Mean
     }
+    
     ## For StDev
     if("STDEV" %in% nsum){
-    #Name new variable
+          #Name new variable
     sum_name<-paste0(n,"_STDEV")
-    #Calculate new variable
+        #Calculate new variable
     big_sum[[sum_name]]<-sqrt(sum((x[[n]]-temp_Mean)^2*x$PWGTP,na.rm = TRUE)/sum(x$PWGTP,na.rm = TRUE))
     } 
   }
+  #Summary stats grouped by cats
+  if("MEAN" %in% nsum){
+    cat_means<-x|>drop_na(cats,nums)|>
+    group_by(across(all_of(cats)))|>
+    summarize(across(all_of(nums),.fns=list(mean=~sum(.x*PWGTP)/sum(PWGTP)),.names="{.fn}_{.col}"))
+   big_sum[["cat_means"]] <- cat_means
+    }
+  if("STDEV" %in% nsum){
+    cat_sds<-x|>drop_na(cats,nums)|>
+    group_by(across(all_of(cats)))|>
+    summarize(across(all_of(nums),.fns=list(sd=sqrt(~sum(.x^2*PWGTP)/sum(PWGTP)-(sum(.x*PWGT)/sum(PWGTP))^2)),.names="{.fn}_{.col}"))
+ big_sum[["cat_sds"]] <- cat_sds
+    }
+  
   big_sum
 }
 
@@ -443,7 +457,7 @@ Alrighty, seems to work!
 Next up, we're to make graphs where we have box plots with feature a numeric and a categorical variable, with a boxplot of the numeric variable for each value of the categorical variable. Always a good graph. 
 
 ```{r}
-# Numerical summary function
+# Graphical summary function
 graph.census<-function(x,cat="HHL_F",num="AGEP"){
   cat_vars=c("FER_F","HHL_F","SCH_F","SCHL_F","SEX_F","STATE_F", "REGION_F", "DIVISION_F","YEAR")
   num_vars=c("AGEP", "GASP", "GRPIP","JWMNP")
@@ -481,26 +495,26 @@ It's not all that much to look at and it took 10 minutes, but it got there!
 
 # Investigation
 
-For my investigation, I decided to look at the four regions included included in the data we're using to see if there was there were any differences in how gas prices changed from region to region 2021 to 2024. For this question, I'm going to stick to the box plots because I doubt the distributions will be symmetric enough for the mean and standard deviation to tell us much. 
+For my investigation, I decided to look at the four regions included included in the data we're using to see if there was there were any differences in how gas prices changed from region to region 2021 to 2024. For this question, I was going to stick to the box plots because I doubted the distributions will be symmetric enough for the mean and standard deviation to tell us much. That said, I this information isn't useless and it gives me a chance to show `summary.census` works.
 
 At first, I was going to get a tibble for the gas prices in each region for the years 2021 and 2024. As I was looking back through the notes, though, I saw the `facet_wrap` feature, so I'm going to get one big table with all the regions all at once. 
 
 Initially, when I tried this, I got this error: "Error in curl::curl_fetch_memory(url, handle = handle) : Failure when receiving data from the peer [api.census.gov]: Recv failure: Connection was reset." After looking online, this can happen when you make big data requests (all regions at once) in rapid succession (using `multi__year` four times, right in a row). 
 
-So, instead of asking for all for fours years, for all four regions all at once, I'm just going to ask for 2021 and 2024, and focus on three states: SD, ND, and MT. 
+So, instead of asking for all for fours years, for all four regions all at once, I'm just going to ask for 2021 and 2024, and focus on the three states I lived in before moving to MN: SD, MT, and KS. 
 
 ```{r}
 # Get tibbles
-sd_gasp<-multi_year_query(yrs=c(2021,2024),geo_level="STATE",geo_vars=46,num_vars = c("GASP"))
+sd_gasp<-multi_year_query(yrs=c(2021,2024),geo_level="STATE",geo_vars=46,num_vars = "GASP")
 
-nd_gasp<-multi_year_query(yrs=c(2021,2024),geo_level="STATE",geo_vars=38,num_vars = c("GASP"))
+mt_gasp<-multi_year_query(yrs=c(2021,2024),geo_level="STATE",geo_vars=30,num_vars = "GASP")
 
-mt_gasp<-multi_year_query(yrs=c(2021,2024),geo_level="STATE",geo_vars=30,num_vars = c("GASP"))
+ks_gasp<-multi_year_query(yrs=c(2021,2024),geo_level="STATE",geo_vars=20,num_vars = "GASP")
 ```
 
 ```{r}
 # Now, to bind them together
-big_bind<-bind_rows(sd_gasp,nd_gasp,mt_gasp)
+big_bind<-bind_rows(sd_gasp,mt_gasp,ks_gasp)
 big_bind
 ```
 
@@ -515,7 +529,7 @@ gassy_graph
 This graph is really hard to read, due to some really big outliers, so I'm going to filter the tibble to start focusing down on reasonable values. 
 
 ```{r}
-# Fitler data, get boxplot
+# Filter data, get boxplot
 
 big_bind2<-filter(big_bind,GASP < 150)
 
@@ -524,6 +538,57 @@ gassy_graph2<-graph.census(big_bind2,cat="YEAR",num="GASP")+facet_wrap(~STATE_F,
 gassy_graph2
 ```
 
-As is probably obvious by now, I thought GASP was represented gas prices (and that those outliers were errors in entry or something) but I finally realized I was way off and looked up what it is and realized that gas price would not be something asked about on the census. 
+Even with the filter placed, it's pretty hard to read. In particular, getting a sense of the middle of the data isn't really possible for KS, so I guess getting the mean is more important than I thought (which prompted the addition to my summary function I discussed above). So, for whatever it's worth, I now know that mean GASP for MT is 
 
-So, I'm shifting geears to looking at fertility with in these states. That means I need to pull some more data.
+```{r}
+GASP_mean<-summary.census(big_bind,cat_vars="STATE_F",num_vars="GASP", nsum="MEAN")
+GASP_mean
+
+```
+So, for whatever it's worth, I now know that mean GASPs are far higher than one might expect, given the medians are nowhere near the weighted means. Of course, there are a lot of high outliers I'm not seeing due to filtering so it's not terribly surprising. 
+
+## Another investigation
+
+As is probably obvious by now, I thought GASP represented gas prices (and that those outliers were errors in data entry or something) but I finally realized I was way off and looked up what it is and realized that gas price would not be something asked about on the census. 
+
+So, with that fairly embarrassing mistake aside, I'm shifting gears to looking ages within these states. I'm wondering if the pandemic caused discernible changes to demographics. For example, if the distribution age of people changed from 2021 to 2024, that might part of that population left (or came into the state) in that time. That means I need to pull some more data. I'm also going to add Iowa here because, in addition to the personal connection of being born there, I remember hearing about young people who worked remote moving to places like Des Moines and Iowa City. Let's find out. Luckily, with my focus on these three fairly small states makes this quickish. 
+
+```{r}
+# Get tibbles
+sd_age<-multi_year_query(yrs=c(2021,2024),geo_level="STATE",geo_vars=46,num_vars="AGEP")
+
+mt_age<-multi_year_query(yrs=c(2021,2024),geo_level="STATE",geo_vars=30,num_vars="AGEP")
+
+ks_age<-multi_year_query(yrs=c(2021,2024),geo_level="STATE",geo_vars=20,num_vars="AGEP")
+
+ia_age<-multi_year_query(yrs=c(2021,2024),geo_level="STATE",geo_vars=19,num_vars="AGEP")
+```
+
+Now, for the binding
+
+```{r}
+age_bind<-bind_rows(sd_age,mt_age,ks_age,ia_age)
+age_bind
+```
+
+And now for the looking. 
+
+```{r}
+age_graph<-graph.census(age_bind,cat="YEAR",num="AGEP")+facet_wrap(~STATE_F,ncol=2)
+age_graph
+```
+
+These look fairly symmetric so looking at the means would give me some precision on the medians too: 
+
+```{r}
+# Get age averages 2021
+age_summary21<-filter(age_bind,YEAR==2021)|>summary.census(cat_vars="STATE_F",num_vars="AGEP", nsum="MEAN")
+age_summary21
+```
+
+```{r}
+# Get age averages 2024
+age_summary24<-filter(age_bind,YEAR==2024)|>summary.census(cat_vars="STATE_F",num_vars="AGEP", nsum="MEAN")
+age_summary24
+```
+Well, that was kind of a bust. Like with the boxplots, there isn't a noticeable change here. Honestly, I didn't really expect there to be without really diving into the crosstabs (to steal a phrase from Galen Druke) but it did give me something to look at and, hopefully, satisfy the requirements of the project. 
