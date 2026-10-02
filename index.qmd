@@ -429,7 +429,7 @@ summary.census<-function(x,cat_vars=c("FER_F","HHL_F","SCH_F","SCHL_F","SEX_F","
   if("STDEV" %in% nsum){
     cat_sds<-x|>drop_na(cats,nums)|>
     group_by(across(all_of(cats)))|>
-    summarize(across(all_of(nums),.fns=list(sd=sqrt(~sum(.x^2*PWGTP)/sum(PWGTP)-(sum(.x*PWGT)/sum(PWGTP))^2)),.names="{.fn}_{.col}"))
+    summarize(across(all_of(nums),.fns=list(sd=~sqrt(sum(.x^2*PWGTP)/sum(PWGTP)-(sum(.x*PWGTP)/sum(PWGTP))^2)),.names="{.fn}_{.col}"))
  big_sum[["cat_sds"]] <- cat_sds
     }
   
