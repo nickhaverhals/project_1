@@ -297,13 +297,10 @@ fix_cols<-function(x,yr,cat_vars=NULL){
    }
  }
  
- 
  # Move my new columns to the front, after a new YEAR column since we'll need it later
  x[["YEAR"]] <- yr
  select(x, PWGTP, YEAR, ends_with("_F"), any_of(c("JWDP", "JWAP")),everything())
 }
-
-
 ```
 
 #### Query Function
@@ -368,6 +365,8 @@ make1<-multi_year_query(yrs=c(2021,2022,2024),geo_level="STATE",geo_vars="27",nu
 make1
 ```
 
+And again.
+
 ```{r}
 make2<-multi_year_query(geo_level="DIVISION",geo_vars="2",num_vars = c("AGEP"),cat_vars=c("SCH","SEX","HHL"))
 make2
@@ -375,7 +374,7 @@ make2
 
 Looks like it's working! NGL, Part 1 was an absolute slog. Here's hoping Part 2 is infinitely differentiable. (Please forgive me, with my retraining I rarely get to make calc puns these days.)
 
-# Part 1: Data Processing
+# Part 2: Writing a Generic Function for Summarizing
 
 ## Numeric Summaries
 
@@ -434,6 +433,65 @@ sum_it_up
 ```
 
 ```{r}
-sum_it_up<-summary.census(make2)
+sum_it_up<-summary.census(make2,nsum="STDEV")
 sum_it_up
+```
+
+Alrighty, seems to work!
+
+## Graphical Summaries
+
+Next up, we're to make graphs where we have box plots with feature a numeric and a categorical variable, with a boxplot of the numeric variable for each value of the categorical variable. Always a good graph. 
+
+```{r}
+# Numerical summary function
+graph.census<-function(x,cat="HHL_F",num="AGEP"){
+  cat_vars=c("FER_F","HHL_F","SCH_F","SCHL_F","SEX_F","STATE_F", "REGION_F", "DIVISION_F","YEAR")
+  num_vars=c("AGEP", "GASP", "GRPIP","JWMNP")
+  new_cats<-intersect(colnames(x),cat_vars)
+  new_nums<-intersect(colnames(x),num_vars)
+    
+  #Check inputs
+    if(!(cat %in% new_cats) || length(cat)!=1 || !(num %in% new_nums) || length(num)!=1){
+    print(paste0("Select a single categorical variable from the following list:",paste(new_cats, collapse = ",")))
+    print(paste0("Select a single numerical variable from the following list:",paste(new_nums, collapse = ",")))
+    stop("variable selection error: Please try again.")
+    }
+  # Make boxplot(s)
+  g<- ggplot(x|>drop_na(all_of(c(cat,num))))
+  
+  g<-g+geom_boxplot(aes(x=as_factor(.data[[cat]]),y=.data[[num]],fill=as_factor(.data[[cat]]),weight=PWGTP))
+  g
+  }
+```
+
+During the trial and error process, I first ran the code above on the tibble `make` but it just sat and spun and spun without throwing an error. I looked at the size of the tibbles I'd already created and saw that`make1` was much smaller and was drawn fairly quickly. 
+
+```{r}
+graph_it_up<-graph.census(make1,cat="SEX_F",num="AGEP")
+graph_it_up
+```
+Being more confident that the code was working I was willing to let the function cook on the bigger tibbles: 
+
+```{r}
+graph_it_up<-graph.census(make,cat="YEAR",num="GASP")
+graph_it_up
+```
+It's not all that much to look at and it took 10 minutes, but it got there! 
+
+# Investigation
+
+For my investigation, I decided to look at the four regions included included in the data we're using to see if there was there were any differences in how gas prices changed from region to region 2021 to 2024. For this question, I'm going to stick to the box plots because I doubt the distributions will be symmetric enough for the mean and standard deviation to tell us much. 
+
+At first, I was going to get a tibble for the gas prices in each region for the years 2021 and 2024. As I was looking back through the notes, though, I saw the `facet_wrap` feature, so I'm going to get one big table with all the regions all at once. 
+
+```{r}
+# Get tibble
+regional_gasp<-multi_year_query(yrs=c(2021,2022,2023,2024),geo_level="REGION",geo_vars="ALL",num_vars = c("GASP"))
+
+# Get boxplot
+
+gas_graph<-graph.census(regional_gasp,cat="YEAR",num="GASP")+facet_wrap(~REGION_F,ncol=2)
+
+gas_graph
 ```
